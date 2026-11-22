@@ -11,7 +11,7 @@
 | M2 距离与方向校准 | 核对双端坐标与起偏 | POST /api/calibration | `app/modules/calibration/service.py` | `tests/test_calibration.py` `tests/test_settings.py` |
 | M3 双端事件最优配对 | 核查相邻冲突及孤测 | POST /api/pairs | `app/modules/pairs/optimal.py` | `tests/test_pairs.py` `tests/test_pair_oracle.py` |
 | M4 接续净损耗判定 | 对照带符号读数和均值 | POST /api/loss | `app/modules/loss/service.py` | `tests/test_loss.py` |
-| M5 设计与实测对账 | 核对逐接头是否缺证 | POST /api/design | `app/modules/design/service.py` | `tests/test_design.py` |
+| M5 设计与实测对账 | 核对逐接头是否缺证、可否先签 | POST /api/design | `app/modules/design/service.py` | `tests/test_design.py` `tests/test_ambiguity.py` |
 | M6 批次留档复跑 | 留档和重跑同一轨迹组 | POST /api/inspections | `app/modules/archive/storage.py` | `tests/test_archive.py` |
 | M7 光纤证据签发 | 复核签发条件并下载 | GET /api/certificate/<id> | `app/modules/certificate/service.py` | `tests/test_certificate.py` |
 
@@ -28,11 +28,20 @@
 | TRAP-15 | A-02 米和千米并存 | 两条虚假轨迹 | 归一毫米后比对 | `app/modules/trace/units.py` | `tests/test_trace.py::test_equivalent_units_dedupe` |
 | TRAP-19 | A100 可匹配 B97 或 B101 | 最近优先导致 A105 无法配对 | 先最大配对数再最小间差 | `app/modules/pairs/optimal.py` | `tests/test_pairs.py::test_global_pairing_beats_greedy_and_keeps_competition` |
 | TRAP-21 | A700 和 B820 均无对侧 | 只报一端孤测 | 分别记录缺 A 或缺 B | `app/modules/pairs/service.py` | `tests/test_pairs.py::test_opposite_ends_missing_in_both_directions` |
+| TRAP-23 | 双端轨迹有两套同等贴合配对 | 挑一套直接签放过可能超限接头 | 前后向 DP 圈出全部最优配对类，逐接头判定结论是否随证据翻转 | `app/modules/pairs/ambiguity.py` `app/modules/design/service.py` | `tests/test_ambiguity.py` |
 
 ## 对账规则
 
 - 6 个设计接头 = 3 通过 + 1 超限 + 2 缺证。
 - 12 条窗内端点 = 2×(4 已挂接 + 1 孤配) + 2 单端。窗外测量另计 1 条。
 - F-01 双向均值 (−0.100+0.300)/2=0.1000 dB，F-03 为 (0.33+0.31)/2=0.3200 dB，超出 0.200 dB。
+
+## 签发与复测规则
+
+- 接头在全部同等贴合配对下结论桶（通过/超限/缺证）不变为 STABLE，否则为 CONTESTED。
+- STABLE 且通过 = 可先签（SIGN_NOW）；CONTESTED = 留待复测（HOLD_RETEST），并阻断整批签发（CONTESTED_JOINTS）。
+- 邻域中点集在所有最优配对下不变（事件必配对且备选同链程）时，对账结果确定，直接判 STABLE。
+- 无相邻设计点竞争时，用禁用候选配对的回避 DP 精确判定证据是否可能整体消失。
+- 签发件与对账预览认同一次留档的证据；补测重算生成新核验编号，原签发件仍可核验；同材料重跑复用首次留档。
 
 输入为设备导出的事件表。二进制曲线解码、坡度自校与电子签章未纳入该工作台。

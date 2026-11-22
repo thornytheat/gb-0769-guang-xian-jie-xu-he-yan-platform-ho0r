@@ -8,7 +8,7 @@ from .modules.archive.storage import get, recent
 from .modules.certificate.service import certify
 from .pipeline import run
 from .modules.calibration.contract import FIELDS
-from .views import CODES, LABELS, half_mm_metres, metres, trace_frames
+from .views import CODES, DECISIONS, LABELS, half_mm_metres, metres, trace_frames
 
 console = Blueprint('console', __name__)
 console.add_app_template_filter(metres, 'metres')
@@ -46,6 +46,6 @@ def view(section='design'):
                 frames = trace_frames(data['calibration'])
     except InspectionError as exc:
         error = exc.code
-    return render_template('console.html', section=section, labels=LABELS, codes=CODES, spec=SPEC, mode=mode,
+    return render_template('console.html', section=section, labels=LABELS, codes=CODES, decisions=DECISIONS, spec=SPEC, mode=mode,
                            data=data, frames=frames, error=error, materials=sources, entries=entries,
                            evidence=evidence, issued=issued, fresh=fresh, fields=FIELDS)
